@@ -1,16 +1,18 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// 🔐 Middlewares
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión a PostgreSQL (Railway)
+// 🔌 Conexión a PostgreSQL (Railway)
 const pool = new Pool({
   host: process.env.PGHOST,
   user: process.env.PGUSER,
@@ -18,37 +20,42 @@ const pool = new Pool({
   database: process.env.PGDATABASE,
   port: process.env.PGPORT,
   ssl: {
-    rejectUnauthorized: false // ⚠️ Necesario para PostgreSQL en Railway
+    rejectUnauthorized: false // Necesario para conexiones seguras (Railway, Neon, etc.)
   }
 });
 
-// Crear tabla si no existe
+// 🛠 Crear tabla si no existe
 const crearTabla = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS evaluaciones (
-      id SERIAL PRIMARY KEY,
-      age INTEGER,
-      bmi REAL,
-      glucose INTEGER,
-      bp INTEGER,
-      hdl INTEGER,
-      ldl INTEGER,
-      smoking BOOLEAN,
-      activity_level TEXT,
-      family_history BOOLEAN,
-      risk_score REAL,
-      level TEXT,
-      fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS evaluaciones (
+        id SERIAL PRIMARY KEY,
+        age INTEGER,
+        bmi REAL,
+        glucose INTEGER,
+        bp INTEGER,
+        hdl INTEGER,
+        ldl INTEGER,
+        smoking BOOLEAN,
+        activity_level TEXT,
+        family_history BOOLEAN,
+        risk_score REAL,
+        level TEXT,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("✅ Tabla 'evaluaciones' lista");
+  } catch (err) {
+    console.error("❌ Error creando tabla:", err.message);
+  }
 };
 crearTabla();
 
-// 🔍 Lógica de predicción simulada
+// 🧠 Lógica simulada de predicción
 function simularPrediccion(data) {
   const { age, bmi, glucose, bp, hdl, ldl, smoking, activity_level, family_history } = data;
-
   let score = 0;
+
   if (age > 50) score += 0.1;
   if (bmi > 30) score += 0.1;
   if (glucose > 120) score += 0.15;
@@ -59,8 +66,11 @@ function simularPrediccion(data) {
   if (activity_level === 'low') score += 0.1;
   if (family_history) score += 0.15;
 
-  score = Math.min(1, Math.max(0, score));
-  let level = score >= 0.7 ? 'Alto' : score >= 0.4 ? 'Moderado' : 'Bajo';
+  score = Math.max(0, Math.min(1, score)); // Clamp entre 0 y 1
+
+  let level = 'Bajo';
+  if (score >= 0.7) level = 'Alto';
+  else if (score >= 0.4) level = 'Moderado';
 
   const recommendations = [
     'Hacer ejercicio regularmente',
@@ -104,7 +114,7 @@ app.get('/api/evaluaciones', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error("❌ Error al obtener:", err.message);
-    res.status(500).json({ mensaje: 'Error al obtener datos' });
+    res.status(500).json({ mensaje: 'Error al obtener los datos' });
   }
 });
 
@@ -122,12 +132,13 @@ app.delete('/api/evaluaciones', async (req, res) => {
 // ✅ GET /
 app.get('/', (req, res) => {
   res.send(`
-    <h2>✅ API activa</h2>
-    <p><a href="/formulario.html">Ir al formulario</a></p>
-    <p><a href="/ver_historial.html">Ver historial</a></p>
+    <h2>✅ API de Evaluación Cardiometabólica Activa</h2>
+    <p><a href="/formulario.html">📋 Formulario</a></p>
+    <p><a href="/ver_historial.html">📊 Historial</a></p>
   `);
 });
 
+// 🟢 Iniciar servidor
 app.listen(PORT, () => {
-  console.log("🚀 Servidor corriendo en http://localhost:" + PORT);
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
