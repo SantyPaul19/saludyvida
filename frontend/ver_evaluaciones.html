@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Historial de Evaluaciones</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="mb-4 text-primary text-center">Historial de Evaluaciones</h1>
+    <div class="d-flex justify-content-center gap-3 mb-4">
+      <button class="btn btn-outline-primary" onclick="cargarEvaluaciones()">Actualizar</button>
+      <button class="btn btn-outline-danger" onclick="borrarEvaluaciones()">Borrar Todo</button>
+      <button class="btn btn-outline-success" onclick="exportarCSV()">Descargar CSV</button>
+    </div>
+    <div class="table-container">
+      <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+          <tr>
+            <th>Edad</th><th>IMC</th><th>Glucosa</th><th>Presión</th><th>HDL</th><th>LDL</th>
+            <th>Actividad</th><th>Fuma</th><th>Familiar</th><th>Score</th><th>Nivel</th><th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-evaluaciones"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let evaluaciones = [];
+
+    async function cargarEvaluaciones() {
+      try {
+        const res = await fetch("http://localhost:3000/api/evaluaciones");
+        evaluaciones = await res.json();
+
+        const tbody = document.getElementById("tabla-evaluaciones");
+        tbody.innerHTML = "";
+
+        evaluaciones.forEach(e => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${e.age}</td>
+            <td>${e.bmi}</td>
+            <td>${e.glucose}</td>
+            <td>${e.bp}</td>
+            <td>${e.hdl}</td>
+            <td>${e.ldl}</td>
+            <td>${e.activity_level}</td>
+            <td>${e.smoking ? 'Sí' : 'No'}</td>
+            <td>${e.family_history ? 'Sí' : 'No'}</td>
+            <td>${(e.risk_score * 100).toFixed(1)}%</td>
+            <td>${e.level}</td>
+            <td>${new Date(e.fecha).toLocaleString()}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        alert("❌ Error al obtener datos del servidor.");
+        console.error(error);
+      }
+    }
+
+    async function borrarEvaluaciones() {
+      if (!confirm("¿Estás seguro de que quieres borrar todos los registros?")) return;
+
+      try {
+        const res = await fetch("http://localhost:3000/api/evaluaciones", {
+          method: "DELETE"
+        });
+
+        if (res.ok) {
+          alert("✅ Registros eliminados correctamente.");
+          cargarEvaluaciones();
+        } else {
+          alert("❌ Error al borrar los datos.");
+        }
+      } catch (error) {
+        alert("❌ Error al conectar con el servidor.");
+        console.error(error);
+      }
+    }
+
+    function exportarCSV() {
+      if (evaluaciones.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+      }
+
+      const encabezados = ["Edad", "IMC", "Glucosa", "Presión", "HDL", "LDL", "Actividad", "Fuma", "Familiar", "Score", "Nivel", "Fecha"];
+      const filas = evaluaciones.map(e => [
+        e.age, e.bmi, e.glucose, e.bp, e.hdl, e.ldl,
+        e.activity_level, e.smoking ? 'Si' : 'No', e.family_history ? 'Si' : 'No',
+        (e.risk_score * 100).toFixed(1) + "%", e.level, new Date(e.fecha).toLocaleString()
+      ]);
+
+      const contenido = [encabezados, ...filas].map(fila => fila.join(",")).join("\n");// ✅ Correcto
+      const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "evaluaciones.csv";
+      a.click();
+    }
+
+    // Cargar automáticamente al abrir la página
+    window.onload = cargarEvaluaciones;
+  </script>
+</body>
+</html>
