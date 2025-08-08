@@ -2,7 +2,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "dotenv": "^16.3.1",
+    "dependencies":
   },
   "name": "backend",
   "version": "1.0.0",
